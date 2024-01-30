@@ -29,6 +29,7 @@ impl Client {
         match cmd {
             Command::Auth => send_cmd(&mut self.stream, ResultCode::CommandNotImplemented, "Not implemented"),
             Command::Unknown(s) => send_cmd(&mut self.stream, ResultCode::UnknownCommand, "Unknown"),
+            Command::Syst => send_cmd(&mut self.stream, ResultCode::Ok, "I won't tell"),
             _ => (),
         }
     }
