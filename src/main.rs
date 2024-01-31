@@ -1,5 +1,6 @@
 extern crate ftp_server;
 
+use std::fmt::format;
 use ftp_server::enums::{ResultCode, Command};
 
 use std::net::{TcpListener, TcpStream};
@@ -28,8 +29,17 @@ impl Client {
 
         match cmd {
             Command::Auth => send_cmd(&mut self.stream, ResultCode::CommandNotImplemented, "Not implemented"),
-            Command::Unknown(s) => send_cmd(&mut self.stream, ResultCode::UnknownCommand, "Unknown"),
             Command::Syst => send_cmd(&mut self.stream, ResultCode::Ok, "I won't tell"),
+            Command::Unknown(s) => send_cmd(&mut self.stream, ResultCode::UnknownCommand, "Unknown"),
+            Command::User(username) => {
+                if username.is_empty() {
+                    send_cmd(&mut self.stream, ResultCode::InvalidParameterOrArgument, "Invalid username")
+                } else {
+                    self.name = Some(username.to_owned());
+                    send_cmd(&mut self.stream, ResultCode::UserLoggedIn,
+                             format!("Welcome {}!", username).as_str())
+                }
+            }
             _ => (),
         }
     }
