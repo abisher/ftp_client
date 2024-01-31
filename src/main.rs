@@ -3,7 +3,7 @@ extern crate ftp_server;
 use std::fmt::format;
 use ftp_server::enums::{ResultCode, Command};
 
-use std::net::{TcpListener, TcpStream};
+use std::net::{TcpListener, TcpStream, IpAddr, Ipv6Addr, SocketAddr, Ipv4Addr};
 use std::io::{Read, Write};
 use std::path::PathBuf;
 use std::thread;
@@ -13,6 +13,7 @@ struct Client {
     cwd: PathBuf,
     stream: TcpStream,
     name: Option<String>,
+    data_writer: Option<TcpStream>,
 }
 
 impl Client {
@@ -21,6 +22,7 @@ impl Client {
             cwd: PathBuf::from("/"),
             stream,
             name: None,
+            data_writer: None,
         }
     }
 
@@ -37,7 +39,39 @@ impl Client {
                 } else {
                     self.name = Some(username.to_owned());
                     send_cmd(&mut self.stream, ResultCode::UserLoggedIn,
-                             format!("Welcome {}!", username).as_str())
+                             &format!("Welcome {}!", username))
+                }
+            }
+            Command::Noop => send_cmd(&mut self.stream, ResultCode::Ok, "Doing
+nothing..."),
+            Command::Pwd => {
+                let msg = format!("{}", self.cwd.to_str().unwrap_or(""));
+                if !msg.is_empty() {
+                    let message = format!("\"/{}\"", msg);
+                    send_cmd(&mut self.stream, ResultCode::PATHNAMECreated, &message);
+                } else {
+                    send_cmd(&mut self.stream, ResultCode::FileNotFound, "No such file or directory")
+                }
+            }
+            Command::Type => send_cmd(&mut self.stream, ResultCode::Ok, "Transfer type changed \
+            successfully"),
+            Command::Pasv => {
+                if self.data_writer.is_some() {
+                    send_cmd(&mut self.stream, ResultCode::DataConnectionAlreadyOpen,
+                             "Already listening")
+                } else {
+                    let port: u16 = 43210;
+                    send_cmd(&mut self.stream, ResultCode::EnteringPassiveMode,
+                             &format!("127,0,0,1,{},{}", port >> 8, port & 0xFF));
+                    let addr = TcpListener::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), port);
+                    let listener = TcpListener::bind(&addr).unwrap();
+
+                    match listener.incoming().next() {
+                        Some(Ok(client)) => {
+                            self.data_writer = Some(client);
+                        }
+                        _ => send_cmd(&mut self.stream, ResultCode::ServiceNotAvailable, "issues ")
+                    }
                 }
             }
             _ => (),

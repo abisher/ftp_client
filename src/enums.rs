@@ -9,8 +9,12 @@ use std::str;
 pub enum Command {
     Auth,
     Syst,
-    Cwd(PathBuf),
     User(String),
+    Cwd(PathBuf),
+    Pwd,
+    Noop,
+    Type,
+    Pasv,
     Unknown(String),
 }
 
@@ -20,7 +24,11 @@ impl AsRef<str> for Command {
             Self::Auth => "AUTH",
             Self::Syst => "SYST",
             Self::User(_) => "USER",
+            Self::Noop => "NOOP",
             Self::Cwd(_) => "CWD",
+            Self::Pwd => "PWD",
+            Self::Type => "TYPE",
+            Self::Pasv => "PASV",
             Self::Unknown(_) => "UNKN",
         }
     }
@@ -37,6 +45,10 @@ impl Command {
             b"CWD" => Command::Cwd(data.map(|bytes|
                 Path::new(str::from_utf8(bytes).unwrap()).to_path_buf()).unwrap()),
             b"SYST" => Command::Syst,
+            b"NOOP" => Command::Noop,
+            b"PWD" => Command::Pwd,
+            b"TYPE" => Command::Type,
+            b"PASV" => Command::Pasv,
             b"USER" => Command::User(data.map(|bytes| String::from_utf8(bytes.to_vec())
                 .expect("cannot convert  bytes to string")).unwrap_or_default()),
             s => Command::Unknown(str::from_utf8(s).unwrap_or("").to_owned()),
