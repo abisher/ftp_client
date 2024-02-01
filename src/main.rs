@@ -1,7 +1,8 @@
 extern crate ftp_server;
 
-use std::fmt::format;
+use std::fs::read_dir;
 use ftp_server::enums::{ResultCode, Command};
+use ftp_server::utils::add_file_info;
 
 use std::net::{TcpListener, TcpStream, IpAddr, Ipv6Addr, SocketAddr, Ipv4Addr};
 use std::io::{Read, Write};
@@ -63,17 +64,42 @@ nothing..."),
                     let port: u16 = 43210;
                     send_cmd(&mut self.stream, ResultCode::EnteringPassiveMode,
                              &format!("127,0,0,1,{},{}", port >> 8, port & 0xFF));
-                    let addr = TcpListener::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), port);
+                    let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), port);
                     let listener = TcpListener::bind(&addr).unwrap();
 
                     match listener.incoming().next() {
                         Some(Ok(client)) => {
                             self.data_writer = Some(client);
                         }
-                        _ => send_cmd(&mut self.stream, ResultCode::ServiceNotAvailable, "issues ")
+                        _ => send_cmd(&mut self.stream, ResultCode::ServiceNotAvailable, "issues happen...")
                     }
                 }
-            }
+            },
+
+            Command::List => {
+                if let Some(ref mut data_writer) = self.data_writer {
+                    let mut tmp = PathBuf::from(".");
+                    send_cmd(&mut self.stream, ResultCode::DataConnectionAlreadyOpen,
+                    "Starting to list directory");
+
+                    let mut out = String::new();
+                    for dir in read_dir(tmp).unwrap() {
+                        for entry in dir {
+                            if let Ok(entry) = entry {
+                                add_file_info(entry.path(), &mut out)
+                            }
+                        }
+                        send_data(data_writer, &out);
+                    }
+                } else {
+                    send_cmd(&mut self.stream, ResultCode::ConnectionClosed,
+                    "No opened data connection");
+                }
+                if self.data_writer.is_some() {
+                    self.data_writer = None;
+                    send_cmd(&mut self.stream, ResultCode::ClosingDataConnection, "Transfer done!");
+                }
+            },
             _ => (),
         }
     }
@@ -134,6 +160,10 @@ fn read_all_message(stream: &mut TcpStream) -> Vec<u8> {
     }
 }
 
+fn send_data(stream: &mut TcpStream, s: &str) {
+    write!(stream, "{}", s).unwrap();
+}
+
 fn main() {
     let listener = TcpListener::bind("0.0.0.0:1234")
         .expect("Couldn't bind address");
@@ -152,3 +182,15 @@ fn main() {
 }
 
 
+#[cfg(test)]
+mod tests {
+    use std::fs::read_dir;
+
+    #[test]
+    fn test_some() {
+        for file in read_dir("src").unwrap() {
+            println!("{:?}", file);
+        }
+        assert!(true)
+    }
+}

@@ -15,6 +15,7 @@ pub enum Command {
     Noop,
     Type,
     Pasv,
+    List,
     Unknown(String),
 }
 
@@ -29,6 +30,7 @@ impl AsRef<str> for Command {
             Self::Pwd => "PWD",
             Self::Type => "TYPE",
             Self::Pasv => "PASV",
+            Self::List => "LIST",
             Self::Unknown(_) => "UNKN",
         }
     }
@@ -49,6 +51,7 @@ impl Command {
             b"PWD" => Command::Pwd,
             b"TYPE" => Command::Type,
             b"PASV" => Command::Pasv,
+            b"LIST" => Command::List,
             b"USER" => Command::User(data.map(|bytes| String::from_utf8(bytes.to_vec())
                 .expect("cannot convert  bytes to string")).unwrap_or_default()),
             s => Command::Unknown(str::from_utf8(s).unwrap_or("").to_owned()),

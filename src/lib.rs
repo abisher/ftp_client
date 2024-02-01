@@ -1,4 +1,4 @@
 pub mod enums;
-mod utils;
+pub mod utils;
 
 
