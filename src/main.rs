@@ -83,12 +83,12 @@ nothing..."),
                     "Starting to list directory");
 
                     let mut out = String::new();
-                    for dir in read_dir(tmp).unwrap() {
-                        for entry in dir {
+                    for entry in read_dir(tmp).unwrap() {
+                        // for entry in dir {
                             if let Ok(entry) = entry {
                                 add_file_info(entry.path(), &mut out)
                             }
-                        }
+                        //}
                         send_data(data_writer, &out);
                     }
                 } else {
@@ -188,8 +188,10 @@ mod tests {
 
     #[test]
     fn test_some() {
-        for file in read_dir("src").unwrap() {
-            println!("{:?}", file);
+        for entry in read_dir("target").unwrap() {
+            let some = entry.unwrap();
+            let path = some.path();
+            println!("{:?} - {:?}", path, path.is_dir());
         }
         assert!(true)
     }

@@ -6,9 +6,9 @@ use std::path::PathBuf;
 
 cfg_if! {
     if #[cfg(windows)] {
-        fn get_file_info(meta: &Metadata) -> (time::Tm, u64) {
+        fn get_file_info(meta: &Metadata) -> (OffsetDateTime, u64) {
             use std::os::windows::prelude::*;
-            (OffsetDateTime::from_unix_timestamp(meta.last_write_time()).unwrap(),
+            (OffsetDateTime::from_unix_timestamp(meta.last_write_time() as i64).unwrap(),
             meta.file_size())
         }
     } else {
@@ -86,6 +86,14 @@ mod tests {
     #[test]
     fn test_dir() {
         let b: PathBuf = PathBuf::from("/usr/bin");
+        assert!(b.is_dir())
+    }
+
+    #[test]
+    fn test_canonize() {
+        let b: PathBuf = PathBuf::from(r"C:\Users\maxal\");
+        let c = b.canonicalize().unwrap();
+        println!("{:?}",c);
         assert!(b.is_dir())
     }
 }
