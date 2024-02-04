@@ -11,11 +11,12 @@ pub enum Command {
     Syst,
     User(String),
     Cwd(PathBuf),
+    CdUp,
     Pwd,
     Noop,
     Type,
     Pasv,
-    List,
+    List(PathBuf),
     Unknown(String),
 }
 
@@ -27,10 +28,11 @@ impl AsRef<str> for Command {
             Self::User(_) => "USER",
             Self::Noop => "NOOP",
             Self::Cwd(_) => "CWD",
+            Self::CdUp => "CDUP",
             Self::Pwd => "PWD",
             Self::Type => "TYPE",
             Self::Pasv => "PASV",
-            Self::List => "LIST",
+            Self::List(_) => "LIST",
             Self::Unknown(_) => "UNKN",
         }
     }
@@ -46,12 +48,14 @@ impl Command {
             b"AUTH" => Command::Auth,
             b"CWD" => Command::Cwd(data.map(|bytes|
                 Path::new(str::from_utf8(bytes).unwrap()).to_path_buf()).unwrap()),
+            b"CDUP" => Command::CdUp,
             b"SYST" => Command::Syst,
             b"NOOP" => Command::Noop,
             b"PWD" => Command::Pwd,
             b"TYPE" => Command::Type,
             b"PASV" => Command::Pasv,
-            b"LIST" => Command::List,
+            b"LIST" => Command::List(data.map(|bytes|
+                Path::new(str::from_utf8(bytes).unwrap()).to_path_buf()).unwrap()),
             b"USER" => Command::User(data.map(|bytes| String::from_utf8(bytes.to_vec())
                 .expect("cannot convert  bytes to string")).unwrap_or_default()),
             s => Command::Unknown(str::from_utf8(s).unwrap_or("").to_owned()),

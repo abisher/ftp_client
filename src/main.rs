@@ -6,7 +6,7 @@ use ftp_server::utils::add_file_info;
 
 use std::net::{TcpListener, TcpStream, IpAddr, Ipv6Addr, SocketAddr, Ipv4Addr};
 use std::io::{Read, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::{env, io, thread};
 
 #[allow(dead_code)]
@@ -76,7 +76,7 @@ nothing..."),
                 }
             }
 
-            Command::List => {
+            Command::List(path) => {
                 if let Some(ref mut data_writer) = self.data_writer {
                     let mut tmp = PathBuf::from(".");
                     send_cmd(&mut self.stream, ResultCode::DataConnectionAlreadyOpen,
@@ -99,6 +99,12 @@ nothing..."),
                     self.data_writer = None;
                     send_cmd(&mut self.stream, ResultCode::ClosingDataConnection, "Transfer done!");
                 }
+            }
+            Command::CdUp => {
+                if let Some(path) = self.cwd.parent().map(Path::to_path_buf) {
+                    self.cwd = path;
+                }
+                send_cmd(&mut self.stream, ResultCode::Ok, "Done");
             }
             _ => (),
         }
