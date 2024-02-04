@@ -1,6 +1,6 @@
 extern crate ftp_server;
 
-use std::fs::read_dir;
+use std::fs::{read_dir, create_dir};
 use ftp_server::enums::{ResultCode, Command};
 use ftp_server::utils::add_file_info;
 
@@ -94,12 +94,10 @@ nothing..."),
                             }
                             send_data(data_writer, &out);
                         }
-
                     } else {
                         send_cmd(&mut self.stream, ResultCode::InvalidParameterOrArgument,
-                        "No such file or directory...");
+                                 "No such file or directory...");
                     }
-
                 } else {
                     send_cmd(&mut self.stream, ResultCode::ConnectionClosed,
                              "No opened data connection");
@@ -114,7 +112,8 @@ nothing..."),
                     self.cwd = path;
                 }
                 send_cmd(&mut self.stream, ResultCode::Ok, "Done");
-            }
+            },
+            Command::Mkd(path) => self.mkd(path),
             _ => (),
         }
     }
@@ -151,6 +150,28 @@ nothing..."),
             return;
         }
         send_cmd(&mut self.stream, ResultCode::FileNotFound, "No such file or directory");
+    }
+
+    fn mkd(&mut self, path: PathBuf) {
+        let server_root = env::current_dir().unwrap();
+        let path = self.cwd.join(path);
+
+        if let Some(parent) = path.parent().map(|p| p.to_path_buf()) {
+            if let Ok(mut dir) = self.complete_path(parent, &server_root) {
+                if dir.is_dir() {
+                    if let Some(filename) = path.file_name().map(|p| p.to_os_string()) {
+                        dir.push(filename);
+                        if create_dir(dir).is_ok() {
+                            send_cmd(&mut self.stream, ResultCode::PATHNAMECreated,
+                            "Folder successfully created!");
+                            return
+                        }
+                    }
+                }
+            }
+        }
+
+        send_cmd(&mut self.stream, ResultCode::FileNotFound, "Couldn't create folder!");
     }
 }
 

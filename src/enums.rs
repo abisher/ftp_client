@@ -11,6 +11,7 @@ pub enum Command {
     Syst,
     User(String),
     Cwd(PathBuf),
+    Mkd(PathBuf),
     CdUp,
     Pwd,
     Noop,
@@ -33,6 +34,7 @@ impl AsRef<str> for Command {
             Self::Type => "TYPE",
             Self::Pasv => "PASV",
             Self::List(_) => "LIST",
+            Self::Mkd(_) => "MKD",
             Self::Unknown(_) => "UNKN",
         }
     }
@@ -47,6 +49,8 @@ impl Command {
         let command = match command.as_slice() {
             b"AUTH" => Command::Auth,
             b"CWD" => Command::Cwd(data.map(|bytes|
+                Path::new(str::from_utf8(bytes).unwrap()).to_path_buf()).unwrap()),
+            b"MKD" => Command::Mkd(data.map(|bytes|
                 Path::new(str::from_utf8(bytes).unwrap()).to_path_buf()).unwrap()),
             b"CDUP" => Command::CdUp,
             b"SYST" => Command::Syst,
