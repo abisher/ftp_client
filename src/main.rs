@@ -7,7 +7,7 @@ use ftp_server::utils::add_file_info;
 use std::net::{TcpListener, TcpStream, IpAddr, Ipv6Addr, SocketAddr, Ipv4Addr};
 use std::io::{Read, Write};
 use std::path::PathBuf;
-use std::thread;
+use std::{env, io, thread};
 
 #[allow(dead_code)]
 struct Client {
@@ -74,34 +74,68 @@ nothing..."),
                         _ => send_cmd(&mut self.stream, ResultCode::ServiceNotAvailable, "issues happen...")
                     }
                 }
-            },
+            }
 
             Command::List => {
                 if let Some(ref mut data_writer) = self.data_writer {
                     let mut tmp = PathBuf::from(".");
                     send_cmd(&mut self.stream, ResultCode::DataConnectionAlreadyOpen,
-                    "Starting to list directory");
+                             "Starting to list directory");
 
                     let mut out = String::new();
                     for entry in read_dir(tmp).unwrap() {
                         // for entry in dir {
-                            if let Ok(entry) = entry {
-                                add_file_info(entry.path(), &mut out)
-                            }
+                        if let Ok(entry) = entry {
+                            add_file_info(entry.path(), &mut out)
+                        }
                         //}
                         send_data(data_writer, &out);
                     }
                 } else {
                     send_cmd(&mut self.stream, ResultCode::ConnectionClosed,
-                    "No opened data connection");
+                             "No opened data connection");
                 }
                 if self.data_writer.is_some() {
                     self.data_writer = None;
                     send_cmd(&mut self.stream, ResultCode::ClosingDataConnection, "Transfer done!");
                 }
-            },
+            }
             _ => (),
         }
+    }
+
+    fn complete_path(&self, path: PathBuf, server_root: &PathBuf) ->
+    Result<PathBuf, io::Error> {
+        let directory = server_root.join(if path.has_root() {
+            path.iter().skip(1).collect()
+        } else {
+            path
+        });
+
+        let dir = directory.canonicalize();
+
+        if let Ok(ref dir) = dir {
+            if !dir.starts_with(&server_root) {
+                return Err(io::ErrorKind::PermissionDenied.into());
+            }
+        }
+        dir
+    }
+
+    fn cwd(mut self, directory: PathBuf) {
+        let server_root = env::current_dir().unwrap();
+        let path = self.cwd.join(&directory);
+
+        if let Ok(dir) = self.complete_path(path, &server_root) {
+            if let Ok(prefix) = dir.strip_prefix(&server_root)
+                .map(|p| p.to_path_buf()) {
+                self.cwd = prefix.to_path_buf();
+                send_cmd(&mut self.stream, ResultCode::Ok,
+                         &format!("Directory changed to \"{}\"", directory.display()))
+            }
+            return;
+        }
+        send_cmd(&mut self.stream, ResultCode::FileNotFound, "No such file or directory");
     }
 }
 
@@ -184,6 +218,7 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
+    use std::env;
     use std::fs::read_dir;
 
     #[test]
@@ -193,6 +228,12 @@ mod tests {
             let path = some.path();
             println!("{:?} - {:?}", path, path.is_dir());
         }
+        assert!(true)
+    }
+
+    #[test]
+    fn dich() {
+        println!("{:?}", env::current_dir());
         assert!(true)
     }
 }
