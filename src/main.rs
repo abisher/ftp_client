@@ -78,19 +78,28 @@ nothing..."),
 
             Command::List(path) => {
                 if let Some(ref mut data_writer) = self.data_writer {
-                    let mut tmp = PathBuf::from(".");
-                    send_cmd(&mut self.stream, ResultCode::DataConnectionAlreadyOpen,
-                             "Starting to list directory");
+                    let server_root = env::current_dir().unwrap();
+                    let path = self.cwd.join(path.unwrap_or_default());
+                    let directory = PathBuf::from(&path);
 
-                    let mut out = String::new();
-                    for entry in read_dir(tmp).unwrap() {
-                        // for entry in dir {
-                        if let Ok(entry) = entry {
-                            add_file_info(entry.path(), &mut out)
+                    if let Ok(path) = self.complete_path(directory, &server_root) {
+                        send_cmd(&mut self.stream, ResultCode::DataConnectionAlreadyOpen,
+                                 "Starting to list directory");
+
+                        let mut out = String::new();
+
+                        for entry in read_dir(path).unwrap() {
+                            if let Ok(entry) = entry {
+                                add_file_info(entry.path(), &mut out)
+                            }
+                            send_data(data_writer, &out);
                         }
-                        //}
-                        send_data(data_writer, &out);
+
+                    } else {
+                        send_cmd(&mut self.stream, ResultCode::InvalidParameterOrArgument,
+                        "No such file or directory...");
                     }
+
                 } else {
                     send_cmd(&mut self.stream, ResultCode::ConnectionClosed,
                              "No opened data connection");
